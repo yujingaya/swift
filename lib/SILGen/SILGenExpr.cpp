@@ -3626,11 +3626,34 @@ static ManagedValue emitKeyPathRValueBase(SILGenFunction &subSGF,
                                              AbstractionPattern::getOpaque(),
                                              baseType);
 
-  // If base is a metatype, it cannot be opened as an existential or upcasted
-  // from a class.
-  if (baseType->is<AnyMetatypeType>())
+  if (baseType->is<AnyMetatypeType>()) {
+    // Pop open an existential metatype.
+    if (auto metatypeTy = baseType->getAs<ExistentialMetatypeType>()) { // any P.Type
+      ExistentialArchetypeType *opened;
+      if (storage->getDeclContext()->getSelfClassDecl()) {
+        opened = ExistentialArchetypeType::get(
+            metatypeTy->getInstanceType()->getCanonicalType());
+      } else {
+        opened =
+            subs.getReplacementTypes()[0]->castTo<ExistentialArchetypeType>();
+      }
+
+      baseType =
+          MetatypeType::get(opened->getCanonicalType())->getCanonicalType();
+      paramSubstValue = subSGF.B.createOpenExistentialMetatype(
+          loc, paramSubstValue, subSGF.getLoweredType(baseType));
+
+      if (auto propertyClass = storage->getDeclContext()->getSelfClassDecl()) {
+        auto superClass =
+            opened->getSuperclassForDecl(propertyClass)->getCanonicalType();
+        baseType = MetatypeType::get(superClass)->getCanonicalType();
+        paramSubstValue = subSGF.B.createUpcast(
+            loc, paramSubstValue, subSGF.getLoweredType(baseType));
+      }
+    }
     return paramSubstValue;
-  
+  }
+
   // Pop open an existential container base.
   if (baseType->isAnyExistentialType()) {
     // Use the opened archetype from the AST for a protocol member, or make a
@@ -3666,7 +3689,7 @@ static ManagedValue emitKeyPathRValueBase(SILGenFunction &subSGF,
                                      SILType::getPrimitiveObjectType(baseType));
     }
   }
-  // …or pop open an existential container.
+
   return paramSubstValue;
 }
 

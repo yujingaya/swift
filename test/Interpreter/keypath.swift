@@ -412,3 +412,95 @@ do {
   let customInstance = staticDynamicLookup.customInitializer("Custom Label")
   print(customInstance.text)
 }
+
+do {
+  protocol Greeter {
+    static var greeting: String { get }
+    static var counter: Int { get set }
+  }
+
+  struct English: Greeter {
+    static var greeting: String { "hello" }
+    static var counter: Int = 0
+  }
+  struct Korean: Greeter {
+    static var greeting: String { "annyeong" }
+    static var counter: Int = 0
+  }
+
+  let greetingKP: KeyPath<any Greeter.Type, String> = \.greeting
+  // CHECK: hello
+  print(English.self[keyPath: greetingKP])
+  // CHECK: annyeong
+  print(Korean.self[keyPath: greetingKP])
+
+  let types: [any Greeter.Type] = [English.self, Korean.self]
+  // CHECK: ["hello", "annyeong"]
+  print(types.map { $0[keyPath: greetingKP] })
+
+  let counterKP: ReferenceWritableKeyPath<any Greeter.Type, Int> = \.counter
+  English.self[keyPath: counterKP] = 7
+  // CHECK: 7
+  print(English.counter)
+  // CHECK: 0
+  print(Korean.counter)
+
+  // CHECK: true
+  print(greetingKP == \(any Greeter.Type).greeting)
+}
+
+do {
+  class Vehicle {
+    static let wheels: Int = 4
+  }
+  protocol Drivable: Vehicle {
+    static var name: String { get }
+  }
+  final class Car: Vehicle, Drivable {
+    static var name: String { "car" }
+  }
+  final class Van: Vehicle, Drivable {
+    static var name: String { "van" }
+  }
+
+  let wheelsKP: KeyPath<any Drivable.Type, Int> = \.wheels
+  let nameKP: KeyPath<any Drivable.Type, String> = \.name
+
+  let all: [any Drivable.Type] = [Car.self, Van.self]
+  // CHECK: [4, 4]
+  print(all.map { $0[keyPath: wheelsKP] })
+  // CHECK: ["car", "van"]
+  print(all.map { $0[keyPath: nameKP] })
+}
+
+do {
+  protocol Table {
+    static subscript(row: Int) -> String { get }
+  }
+
+  struct Latin: Table {
+    static subscript(row: Int) -> String { ["a", "b", "c"][row] }
+  }
+  struct Greek: Table {
+    static subscript(row: Int) -> String { ["alpha", "beta", "gamma"][row] }
+  }
+
+  let firstKP: KeyPath<any Table.Type, String> = \.[0]
+  let thirdKP: KeyPath<any Table.Type, String> = \.[2]
+
+  // CHECK: a
+  print(Latin.self[keyPath: firstKP])
+  // CHECK: gamma
+  print(Greek.self[keyPath: thirdKP])
+
+  let tables: [any Table.Type] = [Latin.self, Greek.self]
+  // CHECK: ["a", "alpha"]
+  print(tables.map { $0[keyPath: firstKP] })
+  // CHECK: ["c", "gamma"]
+  print(tables.map { $0[keyPath: thirdKP] })
+
+  // CHECK: true
+  print(firstKP == (\.[0] as KeyPath<any Table.Type, String>))
+  // CHECK: false
+  print(firstKP == thirdKP)
+}

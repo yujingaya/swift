@@ -1306,12 +1306,6 @@ bool AllowInvalidRefInKeyPath::diagnose(const Solution &solution,
     return failure.diagnose(asNote);
   }
 
-  case RefKind::ProtocolMetatypeStaticMember: {
-    InvalidProtocolMetatypeStaticMemberRefInKeyPath failure(
-        solution, BaseType, Member, getLocator());
-    return failure.diagnose(asNote);
-  }
-
   case RefKind::UnsupportedStaticMember: {
     UnsupportedStaticMemberRefInKeyPath failure(solution, BaseType, Member,
                                                 getLocator());
@@ -1391,13 +1385,7 @@ AllowInvalidRefInKeyPath::forRef(ConstraintSystem &cs, Type baseType,
     }
 
     auto baseRValueType = baseType->getRValueType();
-    if (auto *metatype = baseRValueType->getAs<AnyMetatypeType>()) {
-      if (metatype->getInstanceType()->isExistentialType()) {
-        return AllowInvalidRefInKeyPath::create(
-            cs, baseType, RefKind::ProtocolMetatypeStaticMember, member,
-            locator);
-      }
-    } else {
+    if (!baseRValueType->is<AnyMetatypeType>()) {
       return AllowInvalidRefInKeyPath::create(
           cs, baseType, RefKind::StaticMember, member, locator);
     }

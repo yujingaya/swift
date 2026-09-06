@@ -5849,7 +5849,7 @@ RValue SILGenFunction::emitRValueForStorageLoad(
   // FIXME: This has to be dynamically looked up for classes, and
   // dynamically instantiated for generics.
   if (field->isStatic()) {
-    auto baseMeta = base.getType().castTo<MetatypeType>().getInstanceType();
+    auto baseMeta = base.getType().castTo<AnyMetatypeType>().getInstanceType();
     (void)baseMeta;
     assert(!baseMeta->is<BoundGenericType>() &&
            "generic static stored properties not implemented");
